@@ -4,15 +4,43 @@ import configparser
 from threading import Thread
 import time
 import psutil
+import peewee
+from peewee import *
+from datetime import timedelta
 
 config = configparser.ConfigParser()
-config.read('DCagent.conf')
+config.read('ADNSagent.conf')
+
+INTERVAL = float(config['GENERAL']['interval'])
+TIMEOUT = float(config['GENERAL']['interval'])
+SQLU = config['GENERAL']['sqlu']
+SQLP = config['GENERAL']['sqlp']
+
+DB = MySQLDatabase('pdns', user=SQLU, passwd=SQLP)
+
+class DCLoadRecords(peewee.Model):
+    dcip = peewee.CharField(primary_key=True)
+    serveron = peewee.IntegerField()
+    networkload = peewee.DoubleField()
+    timestamp = peewee.DateTimeField
+    volatility = peewee.DoubleField()
+    class Meta:
+        database = DB
+
+#LoadEntry.create_table()
+le = DCLoadRecords.get(DCLoadRecords.dcip=='ip1')
+le = DCLoadRecords(dcip='ip1', networkload=22.221)
+le.save()
+
+def updaterThread(threadname):
+    db = MySQLDatabase('pdns', user='devdeep', passwd='devdeep')
+
 
 HOST = ''	# Symbolic name, meaning all available interfaces
-PORT = int(config['DEFAULT']['port'])
-INTERVAL = float(config['DEFAULT']['interval'])
-IFACES = [x.strip() for x in config['DEFAULT']['ifaces'].split(',')]
-TIMEOUT = float(config['DEFAULT']['timeout'])
+PORT = int(config['GENERAL']['port'])
+INTERVAL = float(config['GENERAL']['interval'])
+IFACES = [x.strip() for x in config['GENERAL']['ifaces'].split(',')]
+TIMEOUT = float(config['GENERAL']['timeout'])
 
 g_netutil = 0
 
