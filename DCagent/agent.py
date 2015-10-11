@@ -40,7 +40,6 @@ def handlerThread(conn):
     while True:
         # When signal from client, send network usage
         data = conn.recv(1)
-        print(data)
         if not data:
             break
         reply = 'netrate : ' + str(g_netutil)

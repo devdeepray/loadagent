@@ -6,7 +6,7 @@ import time
 import psutil
 import peewee
 from peewee import *
-from datetime import timedelta
+import datetime
 
 config = configparser.ConfigParser()
 config.read('ADNSagent.conf')
@@ -22,87 +22,48 @@ class DCLoadRecords(peewee.Model):
     dcip = peewee.CharField(primary_key=True)
     serveron = peewee.IntegerField()
     networkload = peewee.DoubleField()
-    timestamp = peewee.DateTimeField
+    timestamp = peewee.DateTimeField()
     volatility = peewee.DoubleField()
     class Meta:
         database = DB
 
-#LoadEntry.create_table()
-le = DCLoadRecords.get(DCLoadRecords.dcip=='ip1')
-le = DCLoadRecords(dcip='ip1', networkload=22.221)
-le.save()
+#DCLoadRecords.create_table()
+#le = DCLoadRecords(dcip='dc1.ipaddr', networkload=22.221, serveron=True, timestamp=datetime.datetime.now(), volatility=1)
+#DCLoadRecords.create(**le)
+#le.save(force_insert=True)
+#le = DCLoadRecords(dcip='dc2.ipaddr', networkload=22.221, serveron=True, timestamp=datetime.datetime.now(), volatility=1)
+#le.save()
 
-def updaterThread(threadname):
-    db = MySQLDatabase('pdns', user='devdeep', passwd='devdeep')
-
-
-HOST = ''	# Symbolic name, meaning all available interfaces
-PORT = int(config['GENERAL']['port'])
-INTERVAL = float(config['GENERAL']['interval'])
-IFACES = [x.strip() for x in config['GENERAL']['ifaces'].split(',')]
-TIMEOUT = float(config['GENERAL']['timeout'])
-
-g_netutil = 0
-
-def measurementThread(threadname):
-    global g_netutil
-    prev_meas_time = 0
-    prev_tx = 0
+def updaterThread(ip, pt):
     while True:
-        meas_time = time.time()
-        stat = psutil.net_io_counters(pernic=True)
-        bytes_tx = 0
-        for iface in IFACES:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.connect((ip, int(pt)))
+        except Exception:
+            time.sleep(1)
+            s.close()
+            continue
+        while True:
+            dat = DCLoadRecords(dcip='dc1.ipaddr')
+            s.send(bytes('a', "utf-8"))
             try:
-                bytes_tx = bytes_tx + stat[iface].bytes_sent + stat[iface].bytes_recv
-            except KeyError:
-                print ('iface not found, skipping')
-        g_netutil = (bytes_tx - prev_tx) / (meas_time - prev_meas_time)
-        prev_tx = bytes_tx
-        prev_meas_time = meas_time
-        time.sleep(INTERVAL)
+                data = s.recv(128)
+                dat.serveron = True
+            except Exception:
+                dat.serveron = False
+                dat.timestamp = datetime.datetime.now()
+                dat.save()
+                break
+            dat.networkload = float(data.split(b':')[1])
+            dat.timestamp = float()
+            dat.save()
+            time.sleep(1)
+        s.close()
 
-def handlerThread(conn):
-    global g_netutil
-    conn.settimeout(TIMEOUT)
-    while True:
-        # When signal from client, send network usage
-        data = conn.recv(1)
-        print(data)
-        if not data:
-            break
-        reply = 'netrate : ' + str(g_netutil)
-        conn.sendall(bytes(reply, "utf-8"))
-        time.sleep(1)
-    conn.close()
+for addr, port in zip(config['DC_IP'], config['DC_PORT']):
+    t = Thread( target=updaterThread, args=(config['DC_IP'][addr], config['DC_PORT'][port], ))
+    t.daemon = True
+    t.start()
 
-print ('Starting mon thread')
-# Start monitoring thread to measure network usage
-monthread = Thread( target=measurementThread, args=("Thread-meas", ) )
-monthread.daemon = True
-monthread.start()
-
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-print('Socket created')
-
-#Bind socket to local host and port
-try:
-    s.bind((HOST, PORT))
-except socket.error as msg:
-    print( 'Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1] )
-    sys.exit()
-
-print( 'Socket bind complete' )
-
-#Start listening on socket
-s.listen(10)
-print( 'Now serving clients' )
-
-#now keep talking with the client
-while 1:
-    #wait to accept a connection - blocking call
-        conn, addr = s.accept()
-        handler = Thread(target=handlerThread, args=(conn, ) )
-        handler.daemon = True
-        handler.start()
-s.close()
+while True:
+    a = 1
