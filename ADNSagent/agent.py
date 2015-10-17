@@ -12,7 +12,7 @@ config = configparser.ConfigParser()
 config.read('ADNSagent.conf')
 
 INTERVAL = float(config['GENERAL']['interval'])
-TIMEOUT = float(config['GENERAL']['interval'])
+TIMEOUT = float(config['GENERAL']['timeout'])
 SQLU = config['GENERAL']['sqlu']
 SQLP = config['GENERAL']['sqlp']
 SQLD = config['GENERAL']['sqld']
