@@ -71,12 +71,12 @@ print( 'Now serving clients' )
 #now keep talking with the client
 while 1:
     #wait to accept a connection - blocking call
-        try:
-            conn, addr = s.accept()
-        except KeyboardInterrupt:
-            print('Quitting...')
-            break
-        handler = Thread(target=handlerThread, args=(conn, ) )
-        handler.daemon = True
-        handler.start()
+    try:
+        conn, addr = s.accept()
+    except KeyboardInterrupt:
+        print('Quitting...')
+        break
+    handler = Thread(target=handlerThread, args=(conn, ) )
+    handler.daemon = True
+    handler.start()
 s.close()
