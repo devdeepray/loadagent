@@ -9,7 +9,7 @@ from peewee import *
 import datetime
 
 config = configparser.ConfigParser()
-config.read('ADNSagent.conf')
+config.read('CCagent.conf')
 
 INTERVAL = float(config['GENERAL']['interval'])
 TIMEOUT = float(config['GENERAL']['timeout'])
