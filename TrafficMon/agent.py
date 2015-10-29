@@ -3,6 +3,7 @@ from struct import *
 import configparser
 from threading import Thread
 import time
+import rpyc
 
 config = configparser.ConfigParser()
 config.read('TMon.conf')
@@ -80,35 +81,14 @@ monthread.daemon = True
 measthread.start()
 monthread.start()
 
+class TrafficMonitor(rpyc.Service):
+    def on_connect(self):
+        pass
+    def on_disconnect(self):
+        pass
+    def exposed_get_traffic(self):
+        return g_rate
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-print('Socket created')
-
-#Bind socket to local host and port
-try:
-    s.bind((HOST, PORT))
-except socket.error as msg:
-    print( 'Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1] )
-    sys.exit()
-
-print( 'Socket bind complete' )
-
-#Start listening on socket
-s.listen(10)
-print( 'Now serving clients' )
-
-
-while 1:
-    #wait to accept a connection - blocking call
-    try:
-        conn, addr = s.accept()
-    except KeyboardInterrupt:
-        print('Quitting...')
-        break
-    handler = Thread(target=handlerThread, args=(conn, ) )
-    handler.daemon = True
-    handler.start()
-s.close()
-
-
-# receive a packet
+from rpyc.utils.server import ThreadedServer
+t = ThreadedServer(TrafficMonitor, port = PORT)
+t.start()

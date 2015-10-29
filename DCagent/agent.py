@@ -4,6 +4,7 @@ import configparser
 from threading import Thread
 import time
 import psutil
+import rpyc
 
 config = configparser.ConfigParser()
 config.read('DCagent.conf')
@@ -34,49 +35,21 @@ def measurementThread(threadname):
         prev_meas_time = meas_time
         time.sleep(INTERVAL)
 
-def handlerThread(conn):
-    global g_netutil
-    conn.settimeout(TIMEOUT)
-    while True:
-        # When signal from client, send network usage
-        data = conn.recv(1)
-        if not data:
-            break
-        reply = 'netrate : ' + str(g_netutil)
-        conn.sendall(bytes(reply, "utf-8"))
-    conn.close()
-
 print ('Starting mon thread')
 # Start monitoring thread to measure network usage
 monthread = Thread( target=measurementThread, args=("Thread-meas", ) )
 monthread.daemon = True
 monthread.start()
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-print('Socket created')
 
-#Bind socket to local host and port
-try:
-    s.bind((HOST, PORT))
-except socket.error as msg:
-    print( 'Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1] )
-    sys.exit()
+class LoadMonitor(rpyc.Service):
+    def on_connect(self):
+        pass
+    def on_disconnect(self):
+        pass
+    def exposed_get_load(self):
+        return g_netutil
 
-print( 'Socket bind complete' )
-
-#Start listening on socket
-s.listen(10)
-print( 'Now serving clients' )
-
-#now keep talking with the client
-while 1:
-    #wait to accept a connection - blocking call
-    try:
-        conn, addr = s.accept()
-    except KeyboardInterrupt:
-        print('Quitting...')
-        break
-    handler = Thread(target=handlerThread, args=(conn, ) )
-    handler.daemon = True
-    handler.start()
-s.close()
+from rpyc.utils.server import ThreadedServer
+t = ThreadedServer(LoadMonitor, port = PORT)
+t.start()
