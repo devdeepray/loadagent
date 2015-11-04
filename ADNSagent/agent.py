@@ -60,18 +60,6 @@ def measure_thread():
         iph = unpack('!BBHHHBBH4s4s' , ip_header)
         count(ip2section(socket.inet_ntoa(iph[8])))
 
-def handlerThread(conn):
-    global g_rate
-    conn.settimeout(TIMEOUT)
-    while True:
-        # When signal from client, send network usage
-        data = conn.recv(1)
-        if not data:
-            break
-        reply = str(g_rate)
-        conn.sendall(bytes(reply, "utf-8"))
-    conn.close()
-
 measthread = Thread( target=measure_thread, args=())
 measthread.daemon = True
 
