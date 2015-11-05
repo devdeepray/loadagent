@@ -1,3 +1,9 @@
+# This program measures the load on the DC network interfaces and creates an RPC
+# server to accept requests from the CC node. 
+# TODO: Make a decision about where to calculate costs, on the DC and DC exports
+# just cost is kind of ideal, but if we have more info at CC, we can formulate
+# more elaborate LP.
+
 import socket
 import sys
 import configparser
@@ -6,6 +12,7 @@ import time
 import psutil
 import rpyc
 
+# Config file related things
 config = configparser.ConfigParser()
 config.read('DCagent.conf')
 
@@ -13,10 +20,12 @@ HOST = ''	# Symbolic name, meaning all available interfaces
 PORT = int(config['DEFAULT']['port'])
 INTERVAL = float(config['DEFAULT']['interval'])
 IFACES = [x.strip() for x in config['DEFAULT']['ifaces'].split(',')]
-TIMEOUT = float(config['DEFAULT']['timeout'])
 
+
+# Global data 
 g_netutil = 0
 
+# Thread that executes psutl in intervals and updates the g_netutil variable
 def measurementThread(threadname):
     global g_netutil
     prev_meas_time = 0
@@ -35,21 +44,38 @@ def measurementThread(threadname):
         prev_meas_time = meas_time
         time.sleep(INTERVAL)
 
-print ('Starting mon thread')
-# Start monitoring thread to measure network usage
-monthread = Thread( target=measurementThread, args=("Thread-meas", ) )
-monthread.daemon = True
-monthread.start()
+# RPC server thread
+def rpcThread():
+    class LoadMonitor(rpyc.Service):
+        def on_connect(self):
+            pass
+        def on_disconnect(self):
+            pass
+        def exposed_get_load(self):
+            return g_netutil
+
+    from rpyc.utils.server import ThreadedServer
+    t = ThreadedServer(LoadMonitor, port = PORT)
+    t.start()
+
+if (bool(config['DEFAULT']['experiment'])):
+    print('Starting in experiment mode')
+    rpcthread = Thread( target=rpcThread, args=( ) )
+    rpcthread.daemon = True
+    rpcthread.start()
+    import readline # optional, will allow Up/Down/History in the console
+    import code
+    vars = globals().copy()
+    vars.update(locals())
+    shell = code.InteractiveConsole(vars)
+    shell.interact()
+else:
+    print ('Starting mon thread')
+    # Start monitoring thread to measure network usage
+    monthread = Thread( target=measurementThread, args=("Thread-meas", ) )
+    monthread.daemon = True
+    monthread.start()
+    rpcThread()
 
 
-class LoadMonitor(rpyc.Service):
-    def on_connect(self):
-        pass
-    def on_disconnect(self):
-        pass
-    def exposed_get_load(self):
-        return g_netutil
 
-from rpyc.utils.server import ThreadedServer
-t = ThreadedServer(LoadMonitor, port = PORT)
-t.start()
