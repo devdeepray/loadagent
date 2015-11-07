@@ -1,5 +1,5 @@
 # This program measures the load on the DC network interfaces and creates an RPC
-# server to accept requests from the CC node. 
+# server to accept requests from the CC node.
 # TODO: Make a decision about where to calculate costs, on the DC and DC exports
 # just cost is kind of ideal, but if we have more info at CC, we can formulate
 # more elaborate LP.
@@ -14,15 +14,16 @@ import rpyc
 
 # Config file related things
 config = configparser.ConfigParser()
-config.read('DCagent.conf')
+config.read('conf/DCagent.conf')
 
 HOST = ''	# Symbolic name, meaning all available interfaces
 PORT = int(config['DEFAULT']['port'])
 INTERVAL = float(config['DEFAULT']['interval'])
 IFACES = [x.strip() for x in config['DEFAULT']['ifaces'].split(',')]
+BANDWIDTHCAP = float(config['DEFAULT']['bandwidthcap'])
 
 
-# Global data 
+# Global data
 g_netutil = 0
 
 # Thread that executes psutl in intervals and updates the g_netutil variable
@@ -53,6 +54,10 @@ def rpcThread():
             pass
         def exposed_get_load(self):
             return g_netutil
+        def exposed_get_latency_data(self):
+            latency = configparser.ConfigParser()
+            latency.read('conf/Latency.conf')
+            return dict(x for x in latency['LATENCY'].items())
 
     from rpyc.utils.server import ThreadedServer
     t = ThreadedServer(LoadMonitor, port = PORT)
@@ -76,6 +81,3 @@ else:
     monthread.daemon = True
     monthread.start()
     rpcThread()
-
-
-
