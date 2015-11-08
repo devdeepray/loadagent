@@ -1,0 +1,5 @@
+#!/bin/bash
+
+CC_RUN_CMD='python3 -i ./src/agent.py -gc=./conf/global.conf -lc=./conf/CCagent.conf'
+
+$CC_RUN_CMD

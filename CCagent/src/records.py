@@ -1,3 +1,5 @@
+import datetime
+
 class DCLoadRecords:
     def __init__(self, ip):
         self.dcip = ip

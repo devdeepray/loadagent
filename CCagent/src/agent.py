@@ -17,14 +17,18 @@ import rpyc
 from peewee import *
 import datetime
 from pulp import *
-import records
-import lpsolver
 
+from records import * # The data types for storing ADNS and DC records
 
+import lpsolver # Lp solver code
+
+from globaldefs import * # Parses cmd arguments and also inits globals
 
 # Thread for building the LP and solving it
 def lp_thread():
-    solve_lp(ADNS_LIST, DC_LIST, CLIENT_LIST, g_adns_ip_loads, g_dc_loads)
+    costs = calc_costs(g_dc_loads)
+    caps = dict((x, g_dc_loads[x].bandwidthcap) for x in g_dc_loads)
+    solve_lp(ADNS_LIST, DC_LIST, CLIENT_LIST, g_adns_ip_loads, costs, caps, LOAD_MULTIPLIER)
 
 # Thread for updating the table periodically by polling the DC.
 def dc_thread(id, ip, pt):
@@ -43,7 +47,8 @@ def dc_thread(id, ip, pt):
             g_dc_loads[ip] = dat
             try:
                 dat.networkload = s.root.get_load()
-                dat.costs = s.root.get_latency_data()
+                dat.costs = s.root.get_cost_data()
+                print(dat.costs)
                 dat.bandwidthcap = s.root.get_bandwidthcap()
                 dat.serveron = True
             except Exception:

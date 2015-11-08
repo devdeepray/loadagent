@@ -8,6 +8,9 @@ CCagent.conf
 This contains details like polling interval, timeouts, and the DC and ADNS
 servers it needs to get data from.
 
+
+
+# Some test data for lp solver
 ADNS_LIST = ['A1']
 DC_LIST = ['D1', 'D2']
 CLIENT_LIST = ['C1', 'C2', 'C3']

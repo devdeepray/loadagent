@@ -1,0 +1,5 @@
+#!/bin/bash
+
+DC_RUN_CMD='python3 ./src/agent.py -c=./conf/DCagent.conf -l=./conf/Latency.conf'
+
+$DC_RUN_CMD

@@ -1,6 +1,6 @@
 from pulp import *
 
-def solve_lp(ADNS_LIST, DC_LIST, CLIENT_LIST, g_adns_ip_loads, g_dc_costs, g_dc_caps, g_dc_loads):
+def solve_lp(ADNS_LIST, DC_LIST, CLIENT_LIST, adns_ip_loads, dc_client_costs, dc_bw_caps, load_multiplier):
     prob = LpProblem("LB problem", LpMinimize)
     # Define the LP variables
     # weights:
@@ -12,13 +12,13 @@ def solve_lp(ADNS_LIST, DC_LIST, CLIENT_LIST, g_adns_ip_loads, g_dc_costs, g_dc_
     for adnsid in ADNS_LIST:
         for client in CLIENT_LIST:
             try:
-                m = g_adns_ip_loads[adnsid][client]
+                m = adns_ip_loads[adnsid][client]
             except Exception:
                 m = 0
             for dc in DC_LIST:
                 varid = client + '_' + dc + '_' + adnsid
                 try:
-                    dc_cost = g_dc_costs[dc][client]
+                    dc_cost = dc_client_costs[dc][client]
                 except Exception:
                     dc_cost = DEFAULT_COST
                 costs[varid] = dc_cost * m;
@@ -32,24 +32,12 @@ def solve_lp(ADNS_LIST, DC_LIST, CLIENT_LIST, g_adns_ip_loads, g_dc_costs, g_dc_
             curvars = [client + '_' + dc + '_' + adnsid for dc in DC_LIST]
             prob += lpSum([lb_vars[i] for i in curvars]) == 1, "Distribution fraction sum constraint for " + adnsid + client
 
-    # Need to get multiplicative factor for ADNS load to server load proportion
-    # This is total DC load by total ADNS load.
-
-    tot_adns_load = 0
-    for adns in g_adns_ip_loads:
-        loads = g_adns_ip_loads[adns]
-        for client in loads:
-            tot_adns_load = tot_adns_load + loads[client]
-    tot_dc_load = 0
-    for dc in g_dc_loads:
-        tot_dc_load = tot_dc_load + g_dc_loads[dc]
-    bandwidthfactor = tot_dc_load / tot_adns_load
     for dcid in DC_LIST:
         curvars = dict((client + '_' + dcid + '_' + adnsid,
-                                g_adns_ip_loads[adnsid][client])
+                                adns_ip_loads[adnsid][client])
                     for client in CLIENT_LIST for adnsid in ADNS_LIST)
-        prob += lpSum([lb_vars[i] * (curvars[i] * bandwidthfactor)
-                        for i in curvars]) <= g_dc_caps[dcid], "bandwid constraint for " + dcid
+        prob += lpSum([lb_vars[i] * (curvars[i] * load_multiplier)
+                        for i in curvars]) <= dc_bw_caps[dcid], "bandwid constraint for " + dcid
 
 
     prob.writeLP("LBlp.lp")
