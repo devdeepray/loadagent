@@ -1,0 +1,17 @@
+Overall
+1. Decide about client representation and cross node communication about clients
+
+ADNS
+1. Check working of test mode
+2. Check working of real mode
+
+DC
+1. Check working of test mode
+2. Check working of real mode
+
+CC
+1. Check data accumulation from DC
+2. Check data accumulation from ADNS
+3. Check printing of LP solution
+4. Run experiments to show LP works
+

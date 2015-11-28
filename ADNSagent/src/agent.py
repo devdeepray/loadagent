@@ -7,21 +7,8 @@ import configparser
 from threading import Thread
 import time
 import rpyc
-
-config = configparser.ConfigParser()
-config.read('TMon.conf')
-
-HOST = ''	# Symbolic name, meaning all available interfaces
-PORT = int(config['DEFAULT']['port'])
-INTERVAL = float(config['DEFAULT']['interval'])
-
-g_counts = {}
-g_rate = {}
-
-# The mapping function from ip address to client region
-def ip2section(ipaddr):
-    sp = ipaddr.split('.')
-    return sp[0] + '.' + sp[1]
+from ipmapper import *
+from globaldefs import *
 
 # Record a packet from a particular region
 def count(section):
@@ -29,11 +16,6 @@ def count(section):
         g_counts[section] = g_counts[section] + 1
     else:
         g_counts[section] = 1
-
-# Get the ethernet address string from a bytebuffer
-def eth_addr (a) :
-    b = "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x" % (a[0] , a[1] , a[2], a[3], a[4] , a[5])
-    return b
 
 # Calculates the rate of packets per unit interval
 def calc_rate():
@@ -66,6 +48,31 @@ def measure_thread():
         iph = unpack('!BBHHHBBH4s4s' , ip_header)
         count(ip2section(socket.inet_ntoa(iph[8])))
 
+def rpcThread():
+    class TrafficMonitor(rpyc.Service):
+        def on_connect(self):
+            pass
+        def on_disconnect(self):
+            pass
+        def exposed_get_traffic(self):
+            return g_rate
+
+    from rpyc.utils.server import ThreadedServer
+    t = ThreadedServer(TrafficMonitor, port = PORT)
+    t.start()
+
+if EXPERIMENT:
+    logging.info('Starting in experiment mode')
+    rpcthread = Thread( target=rpcThread, args=( ) )
+    rpcthread.daemon = True
+    rpcthread.start()
+    import readline
+    import code
+    vars = globals().copy()
+    vars.update(locals())
+    shell = code.InteractiveConsole(vars)
+    shell.interact()
+
 measthread = Thread( target=measure_thread, args=())
 measthread.daemon = True
 
@@ -74,15 +81,3 @@ monthread.daemon = True
 
 measthread.start()
 monthread.start()
-
-class TrafficMonitor(rpyc.Service):
-    def on_connect(self):
-        pass
-    def on_disconnect(self):
-        pass
-    def exposed_get_traffic(self):
-        return g_rate
-
-from rpyc.utils.server import ThreadedServer
-t = ThreadedServer(TrafficMonitor, port = PORT)
-t.start()
